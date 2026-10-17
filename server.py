@@ -1,4 +1,3 @@
-```python
 import hashlib
 from contextvars import ContextVar
 
@@ -53,4 +52,3 @@ class ChallengeHeaderMiddleware:
 
 
 app = ChallengeHeaderMiddleware(mcp.streamable_http_app())
-```
