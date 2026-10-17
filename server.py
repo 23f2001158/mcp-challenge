@@ -1,12 +1,10 @@
 
 import hashlib
-from contextvars import ContextVar
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from mcp.server.transport_security import TransportSecuritySettings
 
 EMAIL = "23f2001158@ds.study.iitm.ac.in"
-challenge_header = ContextVar("challenge_header", default="")
 
 mcp = FastMCP(
     "Exam Challenge Server",
@@ -20,36 +18,16 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-def solve_challenge() -> str:
+def solve_challenge(ctx: Context) -> str:
     """Return the required hash for the current exam challenge."""
-    challenge = challenge_header.get()
+    headers = ctx.headers or {}
+    challenge = headers.get("x-exam-challenge", "")
 
     if not challenge:
         raise ValueError("Missing X-Exam-Challenge header")
 
-    message = f"{challenge}:{EMAIL}".encode("utf-8")
+    message = f"{challenge}:{EMAIL.strip().lower()}".encode("utf-8")
     return hashlib.sha256(message).hexdigest()[:16]
 
 
-class ChallengeHeaderMiddleware:
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        headers = dict(scope.get("headers", []))
-        challenge = headers.get(
-            b"x-exam-challenge", b""
-        ).decode("ascii", errors="ignore")
-
-        token = challenge_header.set(challenge)
-        try:
-            await self.app(scope, receive, send)
-        finally:
-            challenge_header.reset(token)
-
-
-app = ChallengeHeaderMiddleware(mcp.streamable_http_app())
+app = mcp.streamable_http_app()
