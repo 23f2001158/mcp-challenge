@@ -8,7 +8,15 @@ from mcp.server.transport_security import TransportSecuritySettings
 EMAIL = "23f2001158@ds.study.iitm.ac.in"
 challenge_header = ContextVar("challenge_header", default="")
 
-mcp = FastMCP("Exam Challenge Server")
+mcp = FastMCP(
+    "Exam Challenge Server",
+    transport_security=TransportSecuritySettings(
+        allowed_hosts=[
+            "mcp-challenge-ag3r.onrender.com",
+            "mcp-challenge-ag3r.onrender.com:*",
+        ],
+    ),
+)
 
 
 @mcp.tool()
@@ -44,13 +52,4 @@ class ChallengeHeaderMiddleware:
             challenge_header.reset(token)
 
 
-app = ChallengeHeaderMiddleware(
-    mcp.streamable_http_app(
-        transport_security=TransportSecuritySettings(
-            allowed_hosts=[
-                "mcp-challenge-ag3r.onrender.com",
-                "mcp-challenge-ag3r.onrender.com:*",
-            ],
-        )
-    )
-)
+app = ChallengeHeaderMiddleware(mcp.streamable_http_app())
