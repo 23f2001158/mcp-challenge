@@ -1,11 +1,11 @@
+
 import hashlib
-from contextvars import ContextVar
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 EMAIL = "23f2001158@ds.study.iitm.ac.in"
-challenge_header = ContextVar("challenge_header", default="")
+latest_challenge = ""
 
 mcp = FastMCP(
     "Exam Challenge Server",
@@ -18,26 +18,21 @@ mcp = FastMCP(
 )
 
 
-
-
 @mcp.tool()
 def solve_challenge() -> str:
-    """Return the required hash for the current exam challenge."""
-    challenge = challenge_header.get()
-
-    print(f"TOOL RECEIVED CHALLENGE: {challenge!r}")
+    """Return the hash for the current exam challenge."""
+    challenge = latest_challenge
 
     if len(challenge) != 32:
-        raise ValueError("Invalid or missing challenge")
+        raise ValueError("Invalid or missing X-Exam-Challenge header")
 
     message = f"{challenge}:{EMAIL.strip().lower()}".encode("utf-8")
     result = hashlib.sha256(message).hexdigest()[:16]
 
-    print(f"TOOL HASH RESULT: {result}")
+    print(f"Challenge received: {challenge!r}")
+    print(f"Hash returned: {result}")
+
     return result
-
-
-
 
 
 class ChallengeHeaderMiddleware:
@@ -45,6 +40,8 @@ class ChallengeHeaderMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        global latest_challenge
+
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -54,18 +51,11 @@ class ChallengeHeaderMiddleware:
             b"x-exam-challenge", b""
         ).decode("ascii", errors="ignore")
 
-        print(
-            f"HTTP request: {scope.get('method')} "
-            f"{scope.get('path')} | "
-            f"Challenge: {challenge!r}"
-        )
+        if scope.get("path") == "/mcp" and scope.get("method") == "POST":
+            latest_challenge = challenge
+            print(f"HTTP challenge: {challenge!r}")
 
-        token = challenge_header.set(challenge)
-        try:
-            await self.app(scope, receive, send)
-        finally:
-            challenge_header.reset(token)
-
+        await self.app(scope, receive, send)
 
 
 app = ChallengeHeaderMiddleware(mcp.streamable_http_app())
