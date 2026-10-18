@@ -19,22 +19,23 @@ mcp = FastMCP(
 
 
 
+
 @mcp.tool()
 def solve_challenge() -> str:
     """Return the required hash for the current exam challenge."""
     challenge = challenge_header.get()
 
-    # Temporary debugging: check Render logs
-    print(f"Challenge received: {challenge!r}")
+    print(f"TOOL RECEIVED CHALLENGE: {challenge!r}")
 
     if len(challenge) != 32:
-        raise ValueError("Invalid or missing X-Exam-Challenge header")
+        raise ValueError("Invalid or missing challenge")
 
     message = f"{challenge}:{EMAIL.strip().lower()}".encode("utf-8")
     result = hashlib.sha256(message).hexdigest()[:16]
 
-    print(f"Hash returned: {result}")
+    print(f"TOOL HASH RESULT: {result}")
     return result
+
 
 
 
