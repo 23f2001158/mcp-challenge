@@ -38,6 +38,7 @@ def solve_challenge() -> str:
 
 
 
+
 class ChallengeHeaderMiddleware:
     def __init__(self, app):
         self.app = app
@@ -52,11 +53,18 @@ class ChallengeHeaderMiddleware:
             b"x-exam-challenge", b""
         ).decode("ascii", errors="ignore")
 
+        print(
+            f"HTTP request: {scope.get('method')} "
+            f"{scope.get('path')} | "
+            f"Challenge: {challenge!r}"
+        )
+
         token = challenge_header.set(challenge)
         try:
             await self.app(scope, receive, send)
         finally:
             challenge_header.reset(token)
+
 
 
 app = ChallengeHeaderMiddleware(mcp.streamable_http_app())
